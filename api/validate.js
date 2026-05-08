@@ -29,13 +29,14 @@ INTERNET ($30/month cap):
 - All others with bundled: need cabinet screenshot showing internet-only amount.
 - If amount higher than previous month: request proof of price change.
 
-MEALS ($10/person): REJECT if alcohol. Individual, itemized. 1-15 = 1st half, 16-31 = 2nd half.
+MEALS ($10/person): REJECT only if alcohol explicitly listed by name (пиво, вино, beer, wine, cerveza, whisky, cocktail, алкоголь, etc.). Do NOT assume food items contain alcohol. Individual, itemized. 1-15 = 1st half, 16-31 = 2nd half.
 
 GYM ($25/month, 50%):
 - Accept massage, gym memberships, TotalPass, bank transfers labeled gym
 - Do NOT flag unknown gym names
 - Amount can exceed $25 — cap applies to reimbursement only
 - Small fees/return charges excluded from reimbursable amount — do not mention if accepted
+- REJECT if no clear payment date visible
 - Min 8 sessions if shown. Max 1 month. No personal training.
 - Jennifer Burns: accept as submitted
 
