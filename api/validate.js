@@ -3,77 +3,47 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { contentParts, contractor, benefitType, monthName, fileCount } = req.body;
+    const { contentParts, benefitType, monthName } = req.body;
 
-    const SYSTEM_PROMPT = `You are a benefits receipt compliance validator for Vitaver Staffing. You review uploaded receipts and determine if they meet policy requirements BEFORE submission.
+    const SYSTEM_PROMPT = `You are a benefits receipt compliance validator for Vitaver Staffing. Respond ONLY with valid JSON, no other text:
+{"status":"ACCEPTED","issues":[],"summary":"brief explanation"}
 
-RESPOND ONLY WITH JSON in this exact format (no markdown, no backticks):
-{"status": "ACCEPTED" or "REJECTED" or "NEEDS_INFO", "issues": ["issue 1", "issue 2"], "summary": "Brief explanation"}
+Status: ACCEPTED, REJECTED, or NEEDS_INFO. Summary max 20 words. Issues max 15 words each.
 
-VALIDATION RULES BY BENEFIT TYPE:
+STEP 1 — CHECK PAYMENT DATE FIRST (before anything else):
+- Is there a clear actual payment date (transaction date, debit date, payment confirmation date)?
+- Invoice date, billing date, membership date, or "Domiciliación bancaria" alone do NOT count
+- If no clear payment date → REJECT: "No payment date visible. Please submit bank statement or payment confirmation showing actual transaction date."
+- If payment date is outside the processing month → REJECT (exception: Ukrainian ЄСВ/ЄП/ВЗ prior month)
+- Only proceed to other checks if payment date is present and within processing month
 
-INTERNET (up to $30/month):
-- The name on the receipt does NOT need to match the contractor's name. Receipts in any name are acceptable for internet reimbursement.
-- Must be for internet service. Bundled services (TV, phone, etc.) are acceptable ONLY if the submission also includes a screenshot from the provider's personal cabinet/account page that clearly shows the monthly price for internet service only. In that case, use the internet-only price shown in the personal cabinet screenshot — NOT the total bundled bill amount.
-- If a bundled receipt is submitted WITHOUT a personal cabinet screenshot showing the internet-only price, set status to NEEDS_INFO and request the screenshot.
-- Use the plan/tariff cost, NOT the top-up/payment amount (top-ups may be higher than the actual monthly fee).
-- Exclude bank commissions and processing fees — only the service cost matters.
-- Must show: provider name, amount, date.
-- If the submission contains both a bundled bill and a personal cabinet screenshot showing the internet-only price, ACCEPT it and note that the internet-only amount from the screenshot should be used for reimbursement.
-- Flag if labeled "Комуналка та Інтернет" (utilities + internet bundle) without a personal cabinet screenshot separating the internet cost.
+STEP 2 — CHECK BENEFIT RULES:
 
-BI-WEEKLY MEALS ($10/person cap, twice per month):
-- REJECT if receipt lists ANY alcoholic beverages (пиво, вино, коктейль, cerveza, vino, beer, wine, whisky, горілка, шампанське, etc.)
-- Must show: restaurant/café name, date, itemized items with prices, total amount
-- Must be an INDIVIDUAL receipt (not a group bill for multiple people)
-- 1st half should be dated 1st-15th of month, 2nd half 16th-31st
-- Flag if date doesn't match the selected half
+DATES: All countries use DD/MM/YYYY. 3/4/2026 = April 3.
 
-GYM/MASSAGE (50% reimbursement, $25/month cap):
-- Massage: ONLY back massage ("масаж спини"), full body massage, medical massage ("масаж медичний"), or therapeutic massage ("лікувальний масаж") qualifies
-- REJECT if massage type is unspecified or is a different type (e.g., facial massage, foot massage)
-- Flag "Краса" (beauty salon) — doesn't confirm massage type, request clarification
-- REJECT card-to-card transfers with just "Масаж" comment — need proper receipt from registered establishment (ФОП, ТОВ)
-- No personal training sessions
-- No yearly subscriptions — monthly only
+INTERNET ($30/month cap):
+- Any name on receipt OK. Payment date = processing month. No service period needed.
+- Accept any legitimate internet provider. Silknet: accept all.
+- Exclude bank commissions.
+- Bundled OK without screenshot for: Martina Fernandez, Sebastian Sciarra, Erik Esparza, Marcos Goytia, Martin Dominguez, Axel Hevia, Irene Melton, Stacy Vickers, Liza Kolbaia, Mikheil Moralishvili, Yuna Paulson, Kristine Bagdavadze, Selda Orton, Tania Kobzar — unless price changed vs previous month, then request screenshot.
+- All others with bundled: need cabinet screenshot showing internet-only amount.
+- If amount higher than previous month: request proof of price change.
 
-TAXES ($40/month, $120/quarter, $480/year):
-- Must show the tax period (month or quarter)
-- Must show amount and payment confirmation
-- Ukrainian taxes: ЄСВ, ЄП, ВЗ are all valid components
-- Argentine "Monotributo" = valid monthly tax
-- Georgian small business tax = valid
-- Check if the tax period matches the processing month
+MEALS ($10/person): REJECT if alcohol. Individual, itemized. 1-15 = 1st half, 16-31 = 2nd half.
 
-HEALTH INSURANCE (50%, $300/year, $25/month if paid monthly):
-- Only for residents of Ukraine, Mexico, Argentina, Georgia
-- Use actual amount PAID/debited, not pre-discount invoice total
-- Must show: insurance provider, amount paid, period covered
-- Do NOT confuse with life insurance
+GYM ($25/month, 50%):
+- Accept massage, gym memberships, TotalPass, bank transfers labeled gym
+- Do NOT flag unknown gym names
+- Amount can exceed $25 — cap applies to reimbursement only
+- Small fees/return charges excluded from reimbursable amount — do not mention if accepted
+- Min 8 sessions if shown. Max 1 month. No personal training.
+- Jennifer Burns: accept as submitted
 
-LIFE INSURANCE (50%, $100/year):
-- MetLife (ПРАТ "МЕТЛАЙФ") = life insurance, NOT health insurance
-- Different cap from health insurance ($100 vs $300)
-
-CHARITY (50% match, $100/year):
-- Must be for "specific most immediate needs (health or basic life needs) of an individual or small group, or animal shelter"
-- Flag military charity donations (Спільнота Стерненка, Підтримай третю штурмову, PrytulaFund) — may not meet policy definition
-- Must be to a registered charitable organization
-
-COMPUTER MAINTENANCE (up to $20):
-- Must be from a maintenance service or registered entity
-- Personal laptop: up to $20. Corporate laptop: fully covered.
-
-BUSINESS EXPENSES (at cost):
-- Must have proper documentation
-- Laptop shipping between contractors is valid
-
-GENERAL RULES:
-- Receipt must be dated within the processing month
-- For internet receipts, the name on the receipt may differ from the contractor's name — this is acceptable
-- For all other benefit types, the receipt should show the contractor's name or be clearly attributable to them
-- If the receipt is unclear or illegible, request a clearer copy
-- Amounts in any local currency are acceptable`;
+TAXES ($40/mo): Ukrainian ЄСВ/ЄП/ВЗ OK (prior month acceptable). Argentine Monotributo/ARCA/IIBB OK. Georgian OK.
+HEALTH INS (50%, $300/yr): UA/MX/AR/GE only. Use debited amount.
+LIFE INS (50%, $100/yr): MetLife=life. Exclude commissions.
+CHARITY (50%, $100/yr): Registered org. Ukrainian military OK. RUSORIZ OK. PrytulaFund OK.
+BUSINESS: Andreani courier OK.`;
 
     try {
         const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -85,7 +55,7 @@ GENERAL RULES:
             },
             body: JSON.stringify({
                 model: "claude-sonnet-4-20250514",
-                max_tokens: 1000,
+                max_tokens: 300,
                 system: SYSTEM_PROMPT,
                 messages: [{ role: "user", content: contentParts }]
             })
@@ -94,9 +64,10 @@ GENERAL RULES:
         const data = await response.json();
         if (data.error) return res.status(500).json({ error: data.error.message || "API error" });
 
-        const text = (data.content || []).map(c => c.text || "").join("");
-        const clean = text.replace(/```json|```/g, "").trim();
-        const parsed = JSON.parse(clean);
+        const text = (data.content || []).map(c => c.text || "").join("").trim();
+        const match = text.match(/\{[\s\S]*\}/);
+        if (!match) return res.status(500).json({ error: "Could not parse response — please try again" });
+        const parsed = JSON.parse(match[0]);
         return res.status(200).json(parsed);
     } catch (err) {
         return res.status(500).json({ error: err.message });
